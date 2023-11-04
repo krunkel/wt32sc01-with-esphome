@@ -1,0 +1,909 @@
+# Inspired by 
+#   Meconiotech on https://community.home-assistant.io/t/lookig-for-importing-forecast/345520/3 
+#   Delorean https://community.home-assistant.io/t/wt32-sc01-with-esphome/473531/13
+#   and many more....
+substitutions:
+  name: "wt32sc01a"
+  friendly_name: "WT32 SC01 A"
+  id_prefix: "wt32sc01a"
+  # for ha entity "light.licht_overloop" typeX = "light" - buttonX = "licht_overloop"
+  # textX = caption on screen, actionX = action to perform in ha entity, imgX = image used on button 
+  button1: "power_airco" 
+  text1: "airco" 
+  type1: "switch"
+  action1: "turn_on"
+  img1: "imgAirco"
+  button2: "all_boven" 
+  text2: "boven" 
+  img2: "imgLampgroup"
+  type2: "light"
+  action2: "turn_off"
+  button3: "licht_overloop" 
+  text3: "overloop" 
+  img3: "imgLamp"
+  type3: "light"
+  action3: "toggle"
+  button4: "licht_trap" 
+  text4: "trap" 
+  img4: "imgLamp"
+  type4: "light"
+  action4: "toggle"
+  button5: "licht_inkom"
+  text5: "inkom"
+  img5: "imgLamp"
+  type5: "light"
+  action5: "toggle"
+  button6: "all_woonkamer" 
+  text6: "woonk." 
+  img6: "imgLampgroup"
+  type6: "light"
+  action6: "turn_off"
+  button7: "all_beneden" 
+  text7: "beneden"
+  img7: "imgLampgroup"
+  type7: "light"
+  action7: "turn_off"
+  button8: "all_keuken" 
+  text8: "keuken" 
+  img8: "imgLampgroup"
+  type8: "light"
+  action8: "turn_off"
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  on_boot:
+    then:
+      - light.turn_on: 
+          id: ${id_prefix}_backlight
+          brightness: 50%
+      - display.page.show: klok5
+
+esp32:
+  board: esp-wrover-kit
+  framework:
+    type: arduino
+
+preferences:
+  flash_write_interval: 15min
+
+logger:
+  level: Error
+
+api:
+  encryption:
+     key: !secret ha_defaultkey
+
+ota:
+  password: !secret esphome_ota_pw
+
+wifi:
+  ssid: !secret wifi_ssid_iot
+  password: !secret wifi_pw_iot
+  manual_ip:
+    static_ip: !secret ip_wt32sc01a
+    gateway: !secret ip_iot_gateway
+    subnet: !secret ip_iot_subnet
+    dns1: !secret ip_iot_dns
+  ap:
+    ssid: "${name} Fallback Hotspot"
+    password: !secret esphome_fb_pw
+
+external_components:
+  - source: github://gpambrozio/esphome@FT6336U-touch
+    components: [ ft63x6 ]
+
+globals:
+   - id: global_dim
+     type: int
+     restore_value: no
+     initial_value: '50'
+
+script:
+  - id: undim_script
+    mode: restart
+    then:
+      - light.turn_on: 
+          id: ${id_prefix}_backlight
+          brightness: 70%
+      - delay: 30 sec
+      - light.turn_on: 
+          id: ${id_prefix}_backlight
+          brightness: 30% 
+#//"{{ global_dim }}"
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+output:
+  - platform: ledc
+    pin: GPIO23
+    id: gpio_23_backlight_pwm
+
+light:
+  - platform: monochromatic
+    output: gpio_23_backlight_pwm
+    name: "${friendly_name} backlight"
+    id: ${id_prefix}_backlight
+    restore_mode: RESTORE_DEFAULT_OFF
+
+i2c:
+  id: i2c_bus_intern
+  sda: 18
+  scl: 19
+  scan: false
+
+touchscreen:
+  - platform: ft63x6
+    id: ${id_prefix}_touch
+    i2c_id: i2c_bus_intern
+    on_touch:
+      - script.execute: undim_script
+
+spi:
+  clk_pin: GPIO14
+  mosi_pin: GPIO13
+  miso_pin: GPIO12
+
+display:
+  - platform: ili9xxx
+    id: ${id_prefix}_display
+    model: ST7796
+    cs_pin: GPIO15
+    dc_pin: GPIO21
+    reset_pin: GPIO22
+    rotation: 90
+    pages:
+      - id: klok5
+        lambda: |-
+          uint16_t v1 = 96;  uint16_t v2 = 192;  uint16_t v3 = 288;  uint16_t v4 = 384;
+          uint16_t m1 = 48;  uint16_t m2 = 144;  uint16_t m3 = 240;  uint16_t m4 = 336;  uint16_t m5 = 432;
+          it.line(0, 96, 479, 96, my_blue);
+          it.line(0, 208, 479, 208, my_blue);
+          // Display 5 day forecast based on ha_forecast
+          // ===========================================
+          if (id(ha_forecast).has_state()) {
+            std::string sForecasts = id(ha_forecast).state;
+            uint8_t count = 0;
+            uint16_t wx = 0;
+            uint16_t imglft;
+            uint16_t imgtop = 14; 
+            char *outerloop = NULL;
+            char *innerloop = NULL;
+            char *Fhour;
+            char *Ftemp;
+            char *Fmm;
+            char *Fcondition;
+            uint8_t FCondCode;
+            char *Fdaynight;
+            // loop through first 5 hourly forecasts
+            // =====================================
+            char *sHourly = strtok_r (&sForecasts[0],"#",&outerloop);
+            while ((sHourly != NULL) && (count < 5 )) {
+              Fhour = strtok_r (sHourly, ";",&innerloop);
+              Ftemp = strtok_r (NULL, ";",&innerloop);
+              Fmm = strtok_r (NULL, ";",&innerloop);
+              Fcondition = strtok_r (NULL, ";",&innerloop);
+              char *sCond = strtok_r (NULL, ";",&innerloop);
+              FCondCode = atoi(sCond);
+              Fdaynight = strtok_r (NULL, ";",&innerloop);
+              // display image based on condition code an daynight code
+              // ======================================================
+              imglft = wx + 12; 
+              switch(FCondCode) {
+                case 1:
+                  it.image(imglft, imgtop, id(ImgCnd1));
+                  break;
+                case 2:
+                  it.image(imglft, imgtop, id(ImgCnd2));
+                  break;
+                case 3:
+                  it.image(imglft, imgtop, id(ImgCnd3));
+                  break;
+                case 4:
+                  it.image(imglft, imgtop, id(ImgCnd4));
+                  break;
+                case 5:
+                  it.image(imglft, imgtop, id(ImgCnd5));
+                  break;
+                case 6:
+                  it.image(imglft, imgtop, id(ImgCnd6));
+                  break;
+                case 7:
+                  if (strcmp(Fdaynight,"D") == 0) {
+                    it.image(imglft, imgtop, id(ImgCnd7D));
+                  } else {
+                    it.image(imglft, imgtop, id(ImgCnd7N));
+                  }
+                  break;
+                case 8:
+                  it.image(imglft, imgtop, id(ImgCnd8));
+                  break;
+                case 9:
+                  it.image(imglft, imgtop, id(ImgCnd9));
+                  break;
+                case 10:
+                  it.image(imglft, imgtop, id(ImgCnd10));
+                  break;
+                case 11:
+                  it.image(imglft, imgtop, id(ImgCnd11));
+                  break;
+                case 12:
+                  if (strcmp(Fdaynight,"D") == 0) {
+                    it.image(imglft, imgtop, id(ImgCnd12));
+                  } else {
+                    it.image(imglft, imgtop, id(ImgCnd1));
+                  }
+
+                  break;
+                default:
+                  it.printf(wx+48, 60, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "%s", Fcondition);
+              }
+              // display hour temperature, temp & precipitation gauge
+              // ====================================================
+              it.printf(wx+6, 0, id(fntSml), my_blue, TextAlign::TOP_LEFT, "%s", Fhour);
+              it.printf(wx+89, 0, id(fntSml), my_blue, TextAlign::TOP_RIGHT, "%s°", Ftemp);
+              // ---- gauge temp ----
+              // range = -8°>0>24° - -16>0>48  
+              it.rectangle(wx+8, 22, 8, 66, my_grey);
+              uint16_t tzero = 71;
+              double temp = atof(Ftemp);
+              int scaletemp = (int) (temp * 2);  
+              if (scaletemp < 0) {
+                if (scaletemp < -16) {scaletemp = -16;}
+                it.filled_rectangle(wx+9, tzero , 6, (scaletemp * -1), my_red);
+              } else {
+                if (scaletemp > 48) {scaletemp = 48;}
+                it.filled_rectangle(wx+9, tzero-scaletemp , 6, scaletemp, my_yellow);
+              }
+              it.line(wx+8, tzero, wx+18, tzero, my_white);
+              it.line(wx+16, tzero-20, wx+18, tzero-20, my_grey);
+              it.line(wx+16, tzero-40, wx+18, tzero-40, my_grey);
+              it.line(wx+16, tzero-10, wx+17, tzero-10, my_grey);
+              it.line(wx+16, tzero-30, wx+17, tzero-30, my_grey);
+              it.line(wx+16, tzero+10, wx+17, tzero+10, my_grey);
+              // ---- aguge precip ----
+              uint16_t scaleprecip = (uint16_t) (atof(Fmm) * 32);   // 32?
+              if (scaleprecip > 64) {scaleprecip = 64;}
+              FCondCode = atoi(sCond);
+              imglft = wx + 12; 
+              it.rectangle(wx+80, 22, 8, 66, my_grey);
+              it.filled_rectangle(wx+81, 88 - scaleprecip, 6, scaleprecip, my_blue);
+              it.line(wx+78, 23, wx+80, 23, my_grey);
+              it.line(wx+78, 55, wx+80, 55, my_grey);
+              it.line(wx+78, 87, wx+80, 87, my_grey);
+              wx+=96;
+              count++;
+              sHourly = strtok_r (NULL,"#",&outerloop);
+            }
+          }
+          it.line(v1, 96, v1, 319, my_blue);
+          it.line(v2, 208, v2, 319, my_blue);
+          it.line(v3, 208, v3, 319, my_blue);
+          it.line(v4, 96, v4, 319, my_blue);
+          // ================================
+          // Display Time, Date, Temperatures
+          // ================================
+          it.strftime(m3, 175, id(fntBig), my_red, TextAlign::BOTTOM_CENTER, "%H:%M", id(homeassistant_time).now());
+          it.strftime(m3, 200, id(fntMid), my_red, TextAlign::BOTTOM_CENTER, "%d:%m:%Y", id(homeassistant_time).now());
+          it.image(102, 140, id(ImgTempin));
+          it.printf(102, 100, id(fntMid), my_yellow, TextAlign::TOP_LEFT, "%.1f°", id(ha_tempbinnen).state);
+          it.image(346, 140, id(ImgTempout));
+          it.printf(380, 100, id(fntMid), my_yellow, TextAlign::TOP_RIGHT, "%.1f°", id(ha_tempbuiten).state);
+          // ===============
+          // Display Buttons
+          // ===============
+          uint16_t imgy1 = 104; uint16_t txty1 = 200;  
+          uint16_t imgy2 = 216; uint16_t txty2 = 312;   
+          it.print(m1, txty1, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text1}");
+          if (id(ha_${button1}).state == "on") {
+            it.image(10, imgy1, id(${img1}),my_yellow);
+          } else {
+            it.image(10, imgy1, id(${img1}),my_grey);
+          }
+          it.print(m5, txty1, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text2}");
+          if (id(ha_${button2}).state == "on") {
+            it.image(v4+10, imgy1, id(${img2}),my_yellow);
+          } else {
+            it.image(v4+10, imgy1, id(${img2}),my_grey);
+          }
+          it.print(m1, txty2, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text3}");
+          if (id(ha_${button3}).state == "on") {
+            it.image(10, imgy2, id(${img3}),my_yellow);
+          } else {
+            it.image(10, imgy2, id(${img3}),my_grey);
+          }
+          it.print(m2, txty2, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text4}");;
+          if (id(ha_${button4}).state == "on") {
+            it.image(v1+10, imgy2, id(${img4}),my_yellow);
+          } else {
+            it.image(v1+10, imgy2, id(${img4}),my_grey);
+          }
+          it.print(m3, txty2, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text5}");
+          if (id(ha_${button5}).state == "on") {
+            it.image(v2+10, imgy2, id(${img5}),my_yellow);
+          } else {
+            it.image(v2+10, imgy2, id(${img5}),my_grey);
+          }
+          it.print(m4, txty2, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text6}");
+          if (id(ha_${button6}).state == "on") {
+            it.image(v3+10, imgy2, id(${img6}),my_yellow);
+          } else {
+            it.image(v3+10, imgy2, id(${img6}),my_grey);
+          }
+          it.print(m5, txty2, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text7}");
+          if (id(ha_${button7}).state == "on") {
+            it.image(v4+10, imgy2, id(${img7}),my_yellow);
+          } else {
+            it.image(v4+10, imgy2, id(${img7}),my_grey);
+          }
+      - id: matrix
+        lambda: |-
+          it.strftime(5, 36, id(fntMid), my_blue, TextAlign::BOTTOM_LEFT, "%d:%m:%Y", id(homeassistant_time).now());
+          it.strftime(475, 36, id(fntMid), my_blue, TextAlign::BOTTOM_RIGHT, "%H:%M:%S", id(homeassistant_time).now());
+          if (id(${id_prefix}_wifi).has_state()) {
+            if (id(${id_prefix}_wifi).state < -70) {
+              it.image(220, 2, id(wifi1),my_yellow); 
+            } else if (id(${id_prefix}_wifi).state < -60) {
+              it.image(220, 2, id(wifi2),my_green); 
+            } else if (id(${id_prefix}_wifi).state < -50) {
+              it.image(220, 2, id(wifi3),my_green); 
+            } else {
+              it.image(220, 2, id(wifi4),my_green); 
+            }
+            it.printf(250, 36, id(fntSml), my_blue, TextAlign::BOTTOM_LEFT, "%.0f",id(${id_prefix}_wifi).state);
+          } else {
+            it.image(220, 2, id(wifi0),my_red);
+          }
+          it.line(0, 39, 479, 39, my_blue);
+          it.line(0, 179, 479, 179, my_blue);
+          it.line(0, 319, 479, 319, my_blue);
+          it.line(0, 39, 0, 319, my_blue);
+          it.line(119, 39, 119, 319, my_blue);
+          it.line(239, 39, 239, 319, my_blue);
+          it.line(359, 39, 359, 319, my_blue);
+          it.line(479, 39, 479, 319, my_blue);
+          it.print(60, 170, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text1}");
+          if (id(ha_${button1}).state == "on") {
+            it.image(20, 60, id(${img1}),my_yellow);
+          } else {
+            it.image(20, 60, id(${img1}),my_grey);
+          }
+          it.print(180, 170, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text2}");
+          if (id(ha_${button2}).state == "on") {
+            it.image(140, 60, id(${img2}),my_yellow);
+          } else {
+            it.image(140, 60, id(${img2}),my_grey);
+          }
+          it.print(300, 170, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text3}");
+          if (id(ha_${button3}).state == "on") {
+            it.image(260, 60, id(${img3}),my_yellow);
+          } else {
+            it.image(260, 60, id(${img3}),my_grey);
+          }
+          it.print(420, 170, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text4}");;
+          if (id(ha_${button4}).state == "on") {
+            it.image(380, 60, id(${img4}),my_yellow);
+          } else {
+            it.image(380, 60, id(${img4}),my_grey);
+          }
+          it.print(60, 310, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text5}");
+          if (id(ha_${button5}).state == "on") {
+            it.image(20, 200, id(${img5}),my_yellow);
+          } else {
+            it.image(20, 200, id(${img5}),my_grey);
+          }
+          it.print(180, 310, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text6}");
+          if (id(ha_${button6}).state == "on") {
+            it.image(140, 200, id(${img6}),my_yellow);
+          } else {
+            it.image(140, 200, id(${img6}),my_grey);
+          }
+          it.print(300, 310, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text7}");
+          if (id(ha_${button7}).state == "on") {
+            it.image(260, 200, id(${img7}),my_yellow);
+          } else {
+            it.image(260, 200, id(${img7}),my_grey);
+          }
+          it.print(420, 310, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text8}");
+          if (id(ha_${button8}).state == "on") {
+            it.image(380, 200, id(${img8}),my_yellow);
+          } else {
+            it.image(380, 200, id(${img8}),my_grey);
+          }
+
+# 420/6 = 70: 35/105/
+font:
+  - file:
+      type: gfonts
+      family: "Roboto"
+    id: fntSml
+    size: 18
+  - file:
+      type: gfonts
+      family: "Roboto"
+    id: fntMid
+    size: 28
+  - file:
+      type: gfonts
+      family: "Roboto Condensed"
+      weight: bold
+    id: fntTemp
+    size: 48
+    glyphs: 0123456789:. °
+  - file:
+      type: gfonts
+      family: "Roboto Condensed"
+      weight: bold
+    id: fntBig
+    size: 64
+    glyphs: 0123456789:.
+
+color:
+  - id: my_white
+    red: 100%
+    green: 100%
+    blue: 100%
+  - id: my_grey
+    red: 50%
+    green: 50%
+    blue: 50%
+  - id: my_red
+    red: 100%
+    green: 25%
+    blue: 25%
+  - id: my_green
+    red: 10%
+    green: 100%
+    blue: 10%
+  - id: my_blue
+    red: 20%
+    green: 60%
+    blue: 100%
+  - id: my_yellow
+    red: 100%
+    green: 100%
+    blue: 10%
+
+image:
+  - file: mdi:air-conditioner
+    id: imgAirco
+    resize: 76x70
+    dither: FLOYDSTEINBERG
+  - file: mdi:lightbulb
+    id: imgLamp
+    resize: 76x76
+    dither: FLOYDSTEINBERG
+  - file: mdi:lightbulb-group
+    id: imgLampgroup
+    resize: 76x76
+    dither: FLOYDSTEINBERG
+  - file: mdi:wifi-strength-alert-outline
+    id: wifi0
+    resize: 32x32
+    dither: FLOYDSTEINBERG
+  - file: mdi:wifi-strength-1
+    id: wifi1
+    resize: 32x32
+    dither: FLOYDSTEINBERG
+  - file: mdi:wifi-strength-2
+    id: wifi2
+    resize: 32x32
+    dither: FLOYDSTEINBERG
+  - file: mdi:wifi-strength-3
+    id: wifi3
+    resize: 32x32
+    dither: FLOYDSTEINBERG
+  - file: mdi:wifi-strength-4
+    id: wifi4
+    resize: 32x32
+    dither: FLOYDSTEINBERG
+  - file: mdi:sun-thermometer-outline
+    id: ImgTempout
+    resize: 32x32
+    dither: FLOYDSTEINBERG
+  - file: mdi:home-thermometer-outline
+    id: ImgTempin
+    resize: 32x32
+    dither: FLOYDSTEINBERG
+  - file: ./images/weather1/clear-night.png
+    id: ImgCnd1
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/cloudy.png
+    id: ImgCnd2
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/fog.png
+    id: ImgCnd3
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/hail.png
+    id: ImgCnd4
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/lightning.png
+    id: ImgCnd5
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/lightning-rainy.png
+    id: ImgCnd6
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/partly-cloudy.png
+    id: ImgCnd7D
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/partly-cloudyN.png
+    id: ImgCnd7N
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/rainy.png
+    id: ImgCnd8
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/rainy.png
+    id: ImgCnd9
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/snowy.png
+    id: ImgCnd10
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/snowy-rainy.png
+    id: ImgCnd11
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/sunny.png
+    id: ImgCnd12
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/windy.png
+    id: ImgCnd13
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/windy-variant.png
+    id: ImgCnd14
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+  - file: ./images/weather1/exceptional.png
+    id: ImgCnd15
+    type: RGB24
+    use_transparency: True
+    resize: 72x72
+
+sensor:
+  - platform: wifi_signal
+    name: "${id_prefix}_wifi"
+    id: "${id_prefix}_wifi"
+    internal: True
+    update_interval: 10s
+  - platform: homeassistant
+    entity_id: sensor.temp_buiten
+    id: ha_tempbuiten
+    internal: True
+  - platform: homeassistant
+    entity_id: sensor.atag_binnentemperatuur
+    id: ha_tempbinnen
+    internal: True
+
+binary_sensor:
+  # touch sensors page 'matrix' 
+  - platform: touchscreen
+    name: top1
+    id: top1
+    internal: True
+    page_id: matrix
+    x_min: 0
+    x_max: 120
+    y_min: 40
+    y_max: 180  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type1}.${action1}
+          data_template:
+            entity_id: ${type1}.${button1}
+  - platform: touchscreen
+    name: top2
+    id: top2
+    internal: True
+    page_id: matrix
+    x_min: 120
+    x_max: 240
+    y_min: 40
+    y_max: 180  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type2}.${action2}
+          data_template:
+            entity_id: ${type2}.${button2}
+  - platform: touchscreen
+    name: top3
+    id: top3
+    internal: True
+    page_id: matrix
+    x_min: 240
+    x_max: 360
+    y_min: 40
+    y_max: 180  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type3}.${action3}
+          data_template:
+            entity_id: ${type3}.${button3}
+  - platform: touchscreen
+    name: top4
+    id: top4
+    internal: True
+    page_id: matrix
+    x_min: 360
+    x_max: 480
+    y_min: 40
+    y_max: 180  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type4}.${action4}
+          data_template:
+            entity_id: ${type4}.${button4}
+  - platform: touchscreen
+    name: bot1
+    id: bot1
+    internal: True
+    page_id: matrix
+    x_min: 2
+    x_max: 118
+    y_min: 182
+    y_max: 316  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type5}.${action5}
+          data_template:
+            entity_id: ${type5}.${button5}
+  - platform: touchscreen
+    name: bot2
+    id: bot2
+    internal: True
+    page_id: matrix
+    x_min: 122
+    x_max: 238
+    y_min: 182
+    y_max: 316  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type6}.${action6}
+          data_template:
+            entity_id: ${type6}.${button6}
+  - platform: touchscreen
+    name: bot3
+    id: bot3
+    internal: True
+    page_id: matrix
+    x_min: 242
+    x_max: 358
+    y_min: 182
+    y_max: 316  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type7}.${action7}
+          data_template:
+            entity_id: ${type7}.${button7}
+  - platform: touchscreen
+    name: bot4
+    id: bot4
+    internal: True
+    page_id: matrix
+    x_min: 362
+    x_max: 478
+    y_min: 182
+    y_max: 316  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type8}.${action8}
+          data_template:
+            entity_id: ${type8}.${button8}
+  - platform: touchscreen
+    name: topcenter
+    id: topcenter
+    internal: True
+    page_id: matrix
+    x_min: 20
+    x_max: 460
+    y_min: 0
+    y_max: 40  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - display.page.show: klok5
+  # touch sensors page 'klok5' 
+  - platform: touchscreen
+    id: k5top1
+    internal: True
+    page_id: klok5
+    x_min: 0
+    x_max: 92
+    y_min: 100
+    y_max: 200  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type1}.${action1}
+          data_template:
+            entity_id: ${type1}.${button1}
+  - platform: touchscreen
+    name: k5top2
+    id: k5top2
+    internal: True
+    page_id: klok5
+    x_min: 388
+    x_max: 479
+    y_min: 100
+    y_max: 200  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type2}.${action2}
+          data_template:
+            entity_id: ${type2}.${button2}
+  - platform: touchscreen
+    id: k5bot1
+    internal: True
+    page_id: klok5
+    x_min: 0
+    x_max: 92
+    y_min: 210
+    y_max: 319  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type3}.${action3}
+          data_template:
+            entity_id: ${type3}.${button3}
+  - platform: touchscreen
+    name: k5bot2
+    id: k5bot2
+    internal: True
+    page_id: klok5
+    x_min: 100
+    x_max: 188
+    y_min: 210
+    y_max: 319  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type4}.${action4}
+          data_template:
+            entity_id: ${type4}.${button4}
+  - platform: touchscreen
+    name: k5bot3
+    id: k5bot3
+    internal: True
+    page_id: klok5
+    x_min: 196
+    x_max: 284
+    y_min: 210
+    y_max: 319  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type5}.${action5}
+          data_template:
+            entity_id: ${type5}.${button5}
+  - platform: touchscreen
+    name: k5bot4
+    id: k5bot4
+    internal: True
+    page_id: klok5
+    x_min: 292
+    x_max: 380
+    y_min: 210
+    y_max: 319  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type6}.${action6}
+          data_template:
+            entity_id: ${type6}.${button6}
+  - platform: touchscreen
+    name: k5bot5
+    id: k5bot5
+    internal: True
+    page_id: klok5
+    x_min: 388
+    x_max: 479
+    y_min: 210
+    y_max: 319  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - homeassistant.service:
+          service: ${type7}.${action7}
+          data_template:
+            entity_id: ${type7}.${button7}
+  - platform: touchscreen
+    id: klok5return
+    internal: True
+    page_id: klok5
+    x_min: 200
+    x_max: 378
+    y_min: 100
+    y_max: 190  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - display.page.show: matrix
+
+text_sensor:
+  - platform: homeassistant
+    entity_id: ${type1}.${button1}
+    id: ha_${button1}
+    internal: True
+  - platform: homeassistant
+    entity_id: ${type2}.${button2}
+    id: ha_${button2}
+    internal: True
+  - platform: homeassistant
+    entity_id: ${type3}.${button3}
+    id: ha_${button3}
+    internal: True
+  - platform: homeassistant
+    entity_id: ${type4}.${button4}
+    id: ha_${button4}
+    internal: True
+  - platform: homeassistant
+    entity_id: ${type5}.${button5}
+    id: ha_${button5}
+    internal: True
+  - platform: homeassistant
+    entity_id: ${type6}.${button6}
+    id: ha_${button6}
+    internal: True
+  - platform: homeassistant
+    entity_id: ${type7}.${button7}
+    id: ha_${button7}
+    internal: True
+  - platform: homeassistant
+    entity_id: ${type8}.${button8}
+    id: ha_${button8}
+    internal: True
+  - platform: homeassistant
+    entity_id: sensor.forecast_8hours
+    id: ha_forecast
+    internal: True
