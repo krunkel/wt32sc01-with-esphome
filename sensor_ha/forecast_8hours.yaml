@@ -1,0 +1,31 @@
+### sensors.yaml ###
+####################
+# forecast_8hours template sensor to be adapted and added to home assistant config
+- platform: template
+  sensors:
+    # generate string with 8 next hourly forecasts: hour;temp;percipation;condcode;condition;day/night#
+    # used in esphome devices 
+    forecast_8hours:
+      value_template: >-
+        {% set CondCode = {
+          "clear-night": 1,
+          "cloudy": 2,
+          "fog": 3,
+          "hail": 4,
+          "lightning": 5,
+          "lightning-rainy": 6,
+          "partlycloudy": 7,
+          "pouring": 8,
+          "rainy": 9,
+          "snowy": 10,
+          "snowy-rainy": 11,
+          "sunny": 12,
+          "windy": 13,
+          "windy-variant": 14,
+          "exceptional": 15
+        } %}
+        {%  set tsunrise = states.sun.sun.attributes.next_rising.split('T')[1]  %}
+        {%  set tsunset = states.sun.sun.attributes.next_setting.split('T')[1]  %}
+        {% for state in states.weather.home_hourly.attributes.forecast[0:8]
+        %}{{state.datetime.split('T')[1].split(':')[0]}}u;{{state.temperature}};{{state.precipitation}};{{state.condition}};{{CondCode[state.condition]}};{% if ((state.datetime.split('T')[1] > tsunrise) and (state.datetime.split('T')[1] < tsunset)) %}D{% else %}N{% endif %}#{%
+        endfor %}
