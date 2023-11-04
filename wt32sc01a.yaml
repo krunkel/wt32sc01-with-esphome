@@ -98,6 +98,10 @@ globals:
      type: int
      restore_value: no
      initial_value: '50'
+   - id: global_forecast
+     type: int
+     restore_value: no
+     initial_value: '0'
 
 script:
   - id: undim_script
@@ -161,27 +165,35 @@ display:
           uint16_t m1 = 48;  uint16_t m2 = 144;  uint16_t m3 = 240;  uint16_t m4 = 336;  uint16_t m5 = 432;
           it.line(0, 96, 479, 96, my_blue);
           it.line(0, 208, 479, 208, my_blue);
-          // Display 5 day forecast based on ha_forecast
-          // ===========================================
-          if (id(ha_forecast).has_state()) {
-            std::string sForecasts = id(ha_forecast).state;
+          // select hourly or daily forecast depending on 'global_forecast'
+          std::string sForecasts = "";
+          if (id(global_forecast) == 0) {    
+            if (id(ha_forecast).has_state()) {
+              sForecasts = id(ha_forecast).state;
+            }
+          } else {
+            if (id(ha_forecast5days).has_state()) {
+              sForecasts = id(ha_forecast5days).state;
+            }
+          }
+          if (sForecasts > "") {
             uint8_t count = 0;
             uint16_t wx = 0;
             uint16_t imglft;
             uint16_t imgtop = 14; 
             char *outerloop = NULL;
             char *innerloop = NULL;
-            char *Fhour;
+            char *Ftime;
             char *Ftemp;
             char *Fmm;
             char *Fcondition;
             uint8_t FCondCode;
             char *Fdaynight;
-            // loop through first 5 hourly forecasts
-            // =====================================
+            // loop through first 5 forecasts
+            // ==============================
             char *sHourly = strtok_r (&sForecasts[0],"#",&outerloop);
             while ((sHourly != NULL) && (count < 5 )) {
-              Fhour = strtok_r (sHourly, ";",&innerloop);
+              Ftime = strtok_r (sHourly, ";",&innerloop);
               Ftemp = strtok_r (NULL, ";",&innerloop);
               Fmm = strtok_r (NULL, ";",&innerloop);
               Fcondition = strtok_r (NULL, ";",&innerloop);
@@ -242,7 +254,7 @@ display:
               }
               // display hour temperature, temp & precipitation gauge
               // ====================================================
-              it.printf(wx+6, 0, id(fntSml), my_blue, TextAlign::TOP_LEFT, "%s", Fhour);
+              it.printf(wx+6, 0, id(fntSml), my_blue, TextAlign::TOP_LEFT, "%s", Ftime);
               it.printf(wx+89, 0, id(fntSml), my_blue, TextAlign::TOP_RIGHT, "%s°", Ftemp);
               // ---- gauge temp ----
               // range = -8°>0>24° - -16>0>48  
@@ -263,8 +275,13 @@ display:
               it.line(wx+16, tzero-10, wx+17, tzero-10, my_grey);
               it.line(wx+16, tzero-30, wx+17, tzero-30, my_grey);
               it.line(wx+16, tzero+10, wx+17, tzero+10, my_grey);
-              // ---- aguge precip ----
-              uint16_t scaleprecip = (uint16_t) (atof(Fmm) * 32);   // 32?
+              // ---- gauge precip ----
+              uint16_t scaleprecip;
+              if (id(global_forecast) == 0) {    
+                scaleprecip = (uint16_t) (atof(Fmm) * 32); 
+              } else{
+                scaleprecip = (uint16_t) (atof(Fmm) * 6.4); 
+              }  
               if (scaleprecip > 64) {scaleprecip = 64;}
               FCondCode = atoi(sCond);
               imglft = wx + 12; 
@@ -869,6 +886,25 @@ binary_sensor:
       - delayed_on: 200ms
     on_press:
       - display.page.show: matrix
+  - platform: touchscreen
+    id: changeforecast
+    internal: True
+    page_id: klok5
+    x_min: 5
+    x_max: 475
+    y_min: 5
+    y_max: 90  
+    filters:
+      - delayed_on: 200ms
+    on_press:
+      - globals.set:
+          id: global_forecast
+          value: !lambda |-
+            if (id(global_forecast) == 1) {
+              return 0;
+            } else {
+              return 1;
+            }
 
 text_sensor:
   - platform: homeassistant
@@ -906,4 +942,8 @@ text_sensor:
   - platform: homeassistant
     entity_id: sensor.forecast_8hours
     id: ha_forecast
+    internal: True
+  - platform: homeassistant
+    entity_id: sensor.forecast_5days
+    id: ha_forecast5days
     internal: True
