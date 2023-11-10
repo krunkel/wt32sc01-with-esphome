@@ -1,0 +1,10 @@
+platform: touchscreen
+id: ${iId}
+internal: True
+page_id: ${iPg}
+filters:
+  - delayed_on: ${delayedOn}
+x_min: ${iX1}
+x_max: ${iX2}
+y_min: ${iY1}
+y_max: ${iY2}
