@@ -49,6 +49,8 @@ substitutions:
   type8: "light"
   action8: "turn_off"
   delayedOn: "180ms"
+  delay1: "100ms"
+  delay2: "300ms"
 
 esphome:
   name: ${name}
@@ -107,10 +109,98 @@ script:
       - light.turn_on: 
           id: ${id_prefix}_backlight
           brightness: 70%
-      - delay: 30 sec
+      - delay: 15 sec
       - light.turn_on: 
           id: ${id_prefix}_backlight
-          brightness: 20% 
+          brightness: 15% 
+  - id: but1_script
+    mode: single
+    then:
+      - homeassistant.service:
+          service: ${type1}.${action1}
+          data_template:
+            entity_id: ${type1}.${button1}
+      - delay: ${delay1}
+      - component.update: ${id_prefix}_display       
+      - delay: ${delay2}
+  - id: but2_script
+    mode: single
+    then:
+      - homeassistant.service:
+          service: ${type2}.${action2}
+          data_template:
+            entity_id: ${type2}.${button2}
+      - delay: ${delay1}
+      - component.update: ${id_prefix}_display       
+      - delay: ${delay2}            
+  - id: but3_script
+    mode: single
+    then:
+      - homeassistant.service:
+          service: ${type3}.${action3}
+          data_template:
+            entity_id: ${type3}.${button3}
+      - delay: ${delay1}
+      - component.update: ${id_prefix}_display       
+      - delay: ${delay2}            
+  - id: but4_script
+    mode: single
+    then:
+      - homeassistant.service:
+          service: ${type4}.${action4}
+          data_template:
+            entity_id: ${type4}.${button4}
+      - delay: ${delay1}
+      - component.update: ${id_prefix}_display       
+      - delay: ${delay2}            
+  - id: but5_script
+    mode: single
+    then:
+      - homeassistant.service:
+          service: ${type5}.${action5}
+          data_template:
+            entity_id: ${type5}.${button5}
+      - delay: ${delay1}
+      - component.update: ${id_prefix}_display       
+      - delay: ${delay2}            
+  - id: but6_script
+    mode: single
+    then:
+      - homeassistant.service:
+          service: ${type6}.${action6}
+          data_template:
+            entity_id: ${type6}.${button6}
+      - delay: ${delay1}
+      - component.update: ${id_prefix}_display       
+      - delay: ${delay2}            
+  - id: but7_script
+    mode: single
+    then:
+      - homeassistant.service:
+          service: ${type7}.${action7}
+          data_template:
+            entity_id: ${type7}.${button7}
+      - delay: ${delay1}
+      - component.update: ${id_prefix}_display       
+      - delay: ${delay2}
+  - id: but_forecast
+    mode: single
+    then:
+      - globals.set:
+          id: global_forecast
+          value: !lambda |-
+            if (id(global_forecast) == 1) {
+              return 0;
+            } else {
+              return 1;
+            }
+      - component.update: ${id_prefix}_display       
+      - delay: ${delay2}            
+  - id: but_time
+    mode: single
+    then:
+      - script.execute: undim_script            
+      - delay: ${delay2}                  
 
 time:
   - platform: homeassistant
@@ -752,144 +842,21 @@ binary_sensor:
     on_press:
       - display.page.show: klok5
   # touch sensors page 'klok5' 
-  - platform: touchscreen
-    id: k5top1
-    internal: True
-    page_id: klok5
-    x_min: 0
-    x_max: 92
-    y_min: 100
-    y_max: 200  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - homeassistant.service:
-          service: ${type1}.${action1}
-          data_template:
-            entity_id: ${type1}.${button1}
-  - platform: touchscreen
-    name: k5top2
-    id: k5top2
-    internal: True
-    page_id: klok5
-    x_min: 388
-    x_max: 479
-    y_min: 100
-    y_max: 200  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - homeassistant.service:
-          service: ${type2}.${action2}
-          data_template:
-            entity_id: ${type2}.${button2}
-  - <<: !include {file: includes/iTouch.yaml, vars: {iId: "k5bot1", iPg: "klok5", iX1: "0", iX2: "92", iY1: "210", iY2: "319"}}
-    on_press:
-      - homeassistant.service:
-          service: ${type3}.${action3}
-          data_template:
-            entity_id: ${type3}.${button3}
-  - platform: touchscreen
-    name: k5bot2
-    id: k5bot2
-    internal: True
-    page_id: klok5
-    x_min: 100
-    x_max: 188
-    y_min: 210
-    y_max: 319  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - homeassistant.service:
-          service: ${type4}.${action4}
-          data_template:
-            entity_id: ${type4}.${button4}
-  - platform: touchscreen
-    name: k5bot3
-    id: k5bot3
-    internal: True
-    page_id: klok5
-    x_min: 196
-    x_max: 284
-    y_min: 210
-    y_max: 319  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - homeassistant.service:
-          service: ${type5}.${action5}
-          data_template:
-            entity_id: ${type5}.${button5}
-  - platform: touchscreen
-    name: k5bot4
-    id: k5bot4
-    internal: True
-    page_id: klok5
-    x_min: 292
-    x_max: 380
-    y_min: 210
-    y_max: 319  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - homeassistant.service:
-          service: ${type6}.${action6}
-          data_template:
-            entity_id: ${type6}.${button6}
-  - platform: touchscreen
-    name: k5bot5
-    id: k5bot5
-    internal: True
-    page_id: klok5
-    x_min: 388
-    x_max: 479
-    y_min: 210
-    y_max: 319  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - homeassistant.service:
-          service: ${type7}.${action7}
-          data_template:
-            entity_id: ${type7}.${button7}
-  - platform: touchscreen
-    id: klok5return
-    internal: True
-    page_id: klok5
-    x_min: 200
-    x_max: 378
-    y_min: 100
-    y_max: 190  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - display.page.show: matrix
-  - platform: touchscreen
-    id: changeforecast
-    internal: True
-    page_id: klok5
-    x_min: 5
-    x_max: 475
-    y_min: 5
-    y_max: 90  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - globals.set:
-          id: global_forecast
-          value: !lambda |-
-            if (id(global_forecast) == 1) {
-              return 0;
-            } else {
-              return 1;
-            }
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5top1", iPg: "klok5", iX1: "2", iX2: "94", iY1: "100", iY2: "200", iSc: "but1_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5top2", iPg: "klok5", iX1: "388", iX2: "478", iY1: "100", iY2: "200", iSc: "but2_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot1", iPg: "klok5", iX1: "2", iX2: "92", iY1: "210", iY2: "318", iSc: "but3_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot2", iPg: "klok5", iX1: "98", iX2: "190", iY1: "210", iY2: "318", iSc: "but4_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot3", iPg: "klok5", iX1: "194", iX2: "286", iY1: "210", iY2: "318", iSc: "but5_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot4", iPg: "klok5", iX1: "290", iX2: "382", iY1: "210", iY2: "318", iSc: "but6_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot5", iPg: "klok5", iX1: "386", iX2: "478", iY1: "210", iY2: "318", iSc: "but7_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5changeforecast", iPg: "klok5", iX1: "10", iX2: "470", iY1: "5", iY2: "90", iSc: "but_forecast"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5touchklok", iPg: "klok5", iX1: "98", iX2: "382", iY1: "100", iY2: "200", iSc: "but_time"}}
   - platform: gpio
     pin: 33
     name: "prox_move"
     id: "prox_move"
     device_class: motion
-    on_press:
+    on_state:
       - script.execute: undim_script
 
 text_sensor:
