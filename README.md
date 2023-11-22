@@ -9,5 +9,5 @@ In the latest version I added a RCWL-0516 radar sensor behind the display to und
 
 The code in this project is based on contributions of many others on https://community.home-assistant.io/!
  
-![display.jpg](./display1.jpg)
+![display.jpg](./display.jpg)
 
