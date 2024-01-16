@@ -86,9 +86,9 @@ wifi:
     ssid: "${name} Fallback Hotspot"
     password: !secret esphome_fb_pw
 
-external_components:
-  - source: github://gpambrozio/esphome@FT6336U-touch
-    components: [ ft63x6 ]
+#external_components:
+#  - source: github://gpambrozio/esphome@FT6336U-touch
+#    components: [ ft63x6 ]
 
 globals:
    - id: global_forecast
@@ -222,6 +222,10 @@ touchscreen:
   - platform: ft63x6
     id: ${id_prefix}_touch
     i2c_id: i2c_bus_intern
+    transform:
+          mirror_x: true
+          mirror_y: false
+          swap_xy: true    
     on_touch:
       - script.execute: undim_script
 
