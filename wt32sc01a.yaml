@@ -228,6 +228,7 @@ touchscreen:
   - platform: ft63x6
     id: ${id_prefix}_touch
     i2c_id: i2c_bus_intern
+    interrupt_pin: GPIO39
     transform:
       mirror_x: true
       mirror_y: false
@@ -472,80 +473,6 @@ display:
           } else {
             it.image(v4+10, imgy2, id(${img7}),my_grey);
           }
-      - id: matrix
-        lambda: |-
-          it.strftime(5, 36, id(fntMid), my_blue, TextAlign::BOTTOM_LEFT, "%d:%m:%Y", id(homeassistant_time).now());
-          it.strftime(475, 36, id(fntMid), my_blue, TextAlign::BOTTOM_RIGHT, "%H:%M:%S", id(homeassistant_time).now());
-          if (id(${id_prefix}_wifi).has_state()) {
-            if (id(${id_prefix}_wifi).state < -70) {
-              it.image(220, 2, id(wifi1),my_yellow); 
-            } else if (id(${id_prefix}_wifi).state < -60) {
-              it.image(220, 2, id(wifi2),my_green); 
-            } else if (id(${id_prefix}_wifi).state < -50) {
-              it.image(220, 2, id(wifi3),my_green); 
-            } else {
-              it.image(220, 2, id(wifi4),my_green); 
-            }
-            it.printf(250, 36, id(fntSml), my_blue, TextAlign::BOTTOM_LEFT, "%.0f",id(${id_prefix}_wifi).state);
-          } else {
-            it.image(220, 2, id(wifi0),my_red);
-          }
-          it.line(0, 39, 479, 39, my_blue);
-          it.line(0, 179, 479, 179, my_blue);
-          it.line(0, 319, 479, 319, my_blue);
-          it.line(0, 39, 0, 319, my_blue);
-          it.line(119, 39, 119, 319, my_blue);
-          it.line(239, 39, 239, 319, my_blue);
-          it.line(359, 39, 359, 319, my_blue);
-          it.line(479, 39, 479, 319, my_blue);
-          it.print(60, 170, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text1}");
-          if (id(ha_${button1}).state == "on") {
-            it.image(20, 60, id(${img1}),my_yellow);
-          } else {
-            it.image(20, 60, id(${img1}),my_grey);
-          }
-          it.print(180, 170, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text2}");
-          if (id(ha_${button2}).state == "on") {
-            it.image(140, 60, id(${img2}),my_yellow);
-          } else {
-            it.image(140, 60, id(${img2}),my_grey);
-          }
-          it.print(300, 170, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text3}");
-          if (id(ha_${button3}).state == "on") {
-            it.image(260, 60, id(${img3}),my_yellow);
-          } else {
-            it.image(260, 60, id(${img3}),my_grey);
-          }
-          it.print(420, 170, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text4}");;
-          if (id(ha_${button4}).state == "on") {
-            it.image(380, 60, id(${img4}),my_yellow);
-          } else {
-            it.image(380, 60, id(${img4}),my_grey);
-          }
-          it.print(60, 310, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text5}");
-          if (id(ha_${button5}).state == "on") {
-            it.image(20, 200, id(${img5}),my_yellow);
-          } else {
-            it.image(20, 200, id(${img5}),my_grey);
-          }
-          it.print(180, 310, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text6}");
-          if (id(ha_${button6}).state == "on") {
-            it.image(140, 200, id(${img6}),my_yellow);
-          } else {
-            it.image(140, 200, id(${img6}),my_grey);
-          }
-          it.print(300, 310, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text7}");
-          if (id(ha_${button7}).state == "on") {
-            it.image(260, 200, id(${img7}),my_yellow);
-          } else {
-            it.image(260, 200, id(${img7}),my_grey);
-          }
-          it.print(420, 310, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "${text8}");
-          if (id(ha_${button8}).state == "on") {
-            it.image(380, 200, id(${img8}),my_yellow);
-          } else {
-            it.image(380, 200, id(${img8}),my_grey);
-          }
 
 # 420/6 = 70: 35/105/
 font:
@@ -588,17 +515,18 @@ color:
     green: 25%
     blue: 25%
   - id: my_green
-    red: 10%
-    green: 100%
-    blue: 10%
+    red: 0%
+    green: 80%
+    blue: 0%
   - id: my_blue
     red: 20%
     green: 60%
     blue: 100%
   - id: my_yellow
-    red: 100%
-    green: 100%
-    blue: 10%
+    red: 75%
+    green: 75%
+    blue: 0%
+
 
 image:
   - file: mdi:air-conditioner
@@ -742,109 +670,6 @@ sensor:
     internal: True
 
 binary_sensor:
-  # touch sensors page 'matrix' 
-  # platform: touchscreen
-  - <<: !include {file: includes/iTouch.yaml, vars: {iId: "top1", iPg: "matrix", iX1: "0", iX2: "119", iY1: "40", iY2: "180"}}
-    on_press:
-      - homeassistant.service:
-          service: ${type1}.${action1}
-          data_template:
-            entity_id: ${type1}.${button1}
-  - <<: !include {file: includes/iTouch.yaml, vars: {iId: "top2", iPg: "matrix", iX1: "120", iX2: "239", iY1: "40", iY2: "180"}}
-    on_press:
-      - homeassistant.service:
-          service: ${type2}.${action2}
-          data_template:
-            entity_id: ${type2}.${button2}
-  - <<: !include {file: includes/iTouch.yaml, vars: {iId: "top3", iPg: "matrix", iX1: "240", iX2: "359", iY1: "40", iY2: "180"}}
-    on_press:
-      - homeassistant.service:
-          service: ${type3}.${action3}
-          data_template:
-            entity_id: ${type3}.${button3}
-  - <<: !include {file: includes/iTouch.yaml, vars: {iId: "top4", iPg: "matrix", iX1: "360", iX2: "479", iY1: "40", iY2: "180"}}
-    on_press:
-      - homeassistant.service:
-          service: ${type4}.${action4}
-          data_template:
-            entity_id: ${type4}.${button4}
-  - platform: touchscreen
-    name: bot1
-    id: bot1
-    internal: True
-    page_id: matrix
-    x_min: 2
-    x_max: 118
-    y_min: 182
-    y_max: 316  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - homeassistant.service:
-          service: ${type5}.${action5}
-          data_template:
-            entity_id: ${type5}.${button5}
-  - platform: touchscreen
-    name: bot2
-    id: bot2
-    internal: True
-    page_id: matrix
-    x_min: 122
-    x_max: 238
-    y_min: 182
-    y_max: 316  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - homeassistant.service:
-          service: ${type6}.${action6}
-          data_template:
-            entity_id: ${type6}.${button6}
-  - platform: touchscreen
-    name: bot3
-    id: bot3
-    internal: True
-    page_id: matrix
-    x_min: 242
-    x_max: 358
-    y_min: 182
-    y_max: 316  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - homeassistant.service:
-          service: ${type7}.${action7}
-          data_template:
-            entity_id: ${type7}.${button7}
-  - platform: touchscreen
-    name: bot4
-    id: bot4
-    internal: True
-    page_id: matrix
-    x_min: 362
-    x_max: 478
-    y_min: 182
-    y_max: 316  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - homeassistant.service:
-          service: ${type8}.${action8}
-          data_template:
-            entity_id: ${type8}.${button8}
-  - platform: touchscreen
-    name: topcenter
-    id: topcenter
-    internal: True
-    page_id: matrix
-    x_min: 20
-    x_max: 460
-    y_min: 0
-    y_max: 40  
-    filters:
-      - delayed_on: ${delayedOn}
-    on_press:
-      - display.page.show: klok5
   # touch sensors page 'klok5' 
   - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5top1", iPg: "klok5", iX1: "2", iX2: "94", iY1: "100", iY2: "200", iSc: "but1_script"}}
   - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5top2", iPg: "klok5", iX1: "388", iX2: "478", iY1: "100", iY2: "200", iSc: "but2_script"}}

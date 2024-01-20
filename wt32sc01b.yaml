@@ -222,6 +222,7 @@ touchscreen:
   - platform: ft63x6
     id: ${id_prefix}_touch
     i2c_id: i2c_bus_intern
+    interrupt_pin: GPIO39
     transform:
           mirror_x: true
           mirror_y: false
