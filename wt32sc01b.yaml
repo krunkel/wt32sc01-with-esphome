@@ -13,36 +13,43 @@ substitutions:
   type1: "light"
   action1: "toggle"
   img1: "imgLampgroup"
+  #-----------------
   button2: "all_boven" 
   text2: "boven" 
-  img2: "imgLampgroup"
   type2: "light"
   action2: "turn_off"
+  img2: "imgLampgroup"
+  #-----------------
   button3: "licht_berging" 
   text3: "berging" 
-  img3: "imgLamp"
   type3: "light"
   action3: "toggle"
+  img3: "imgLamp"
+  #-----------------
   button4: "licht_kelder"
   text4: "kelder"
-  img4: "imgLamp"
   type4: "light"
   action4: "turn_off"
+  img4: "imgLamp"
+  #-----------------
   button5: "licht_keuken" 
   text5: "keuken" 
-  img5: "imgLampgroup"
   type5: "light"
   action5: "turn_off"
+  img5: "imgLampgroup"
+  #-----------------
   button6: "all_woonkamer" 
   text6: "woonk." 
-  img6: "imgLampgroup"
   type6: "light"
   action6: "turn_off"
+  img6: "imgLampgroup"
+  #-----------------
   button7: "all_beneden" 
   text7: "beneden"
-  img7: "imgLampgroup"
   type7: "light"
   action7: "turn_off"
+  img7: "imgLampgroup"
+  #-----------------
   delay1: "100ms"
   delay2: "300ms"
 
@@ -69,7 +76,7 @@ logger:
 
 api:
   encryption:
-     key: !secret ha_defaultkey
+    key: !secret ha_defaultkey
 
 ota:
   password: !secret esphome_ota_pw
@@ -86,15 +93,11 @@ wifi:
     ssid: "${name} Fallback Hotspot"
     password: !secret esphome_fb_pw
 
-#external_components:
-#  - source: github://gpambrozio/esphome@FT6336U-touch
-#    components: [ ft63x6 ]
-
 globals:
-   - id: global_forecast
-     type: int
-     restore_value: no
-     initial_value: '0'
+  - id: global_forecast
+    type: int
+    restore_value: no
+    initial_value: '0'
 
 script:
   - id: undim_script
@@ -102,8 +105,8 @@ script:
     then:
       - light.turn_on: 
           id: ${id_prefix}_backlight
-          brightness: 60%
-      - delay: 30 sec
+          brightness: 70%
+      - delay: 15 sec
       - light.turn_on: 
           id: ${id_prefix}_backlight
           brightness: 15% 
@@ -176,7 +179,7 @@ script:
             entity_id: ${type7}.${button7}
       - delay: ${delay1}
       - component.update: ${id_prefix}_display       
-      - delay: ${delay2}            
+      - delay: ${delay2}
   - id: but_forecast
     mode: single
     then:
@@ -194,7 +197,7 @@ script:
     mode: single
     then:
       - script.execute: undim_script            
-      - delay: ${delay2}            
+      - delay: ${delay2}                  
 
 time:
   - platform: homeassistant
@@ -223,12 +226,23 @@ touchscreen:
     id: ${id_prefix}_touch
     i2c_id: i2c_bus_intern
     interrupt_pin: GPIO39
-    transform:
-          mirror_x: true
-          mirror_y: false
-          swap_xy: true    
+#    transform:
+#      swap_xy: true
+#      mirror_x: true
+#    calibration:
+#      x_min: 0
+#      x_max: 319
+#      y_min: 479
+#      y_max: 0
     on_touch:
       - script.execute: undim_script
+#      - lambda: |-
+#            ESP_LOGI("cal", "x=%d, y=%d, x_raw=%d, y_raw=%0d",
+#                touch.x,
+#                touch.y,
+#                touch.x_raw,
+#                touch.y_raw
+#                );      
 
 spi:
   clk_pin: GPIO14
@@ -246,6 +260,7 @@ display:
     pages:
       - id: klok5
         lambda: |-
+          auto time = id(homeassistant_time).now();
           uint16_t v1 = 96;  uint16_t v2 = 192;  uint16_t v3 = 288;  uint16_t v4 = 384;
           uint16_t m1 = 48;  uint16_t m2 = 144;  uint16_t m3 = 240;  uint16_t m4 = 336;  uint16_t m5 = 432;
           it.line(0, 96, 479, 96, my_blue);
@@ -265,29 +280,33 @@ display:
             uint8_t count = 0;
             uint16_t wx = 0;
             uint16_t imglft;
-            uint16_t imgtop = 14; 
+            uint16_t imgtop = 15; 
             char *outerloop = NULL;
             char *innerloop = NULL;
             char *Ftime;
-            char *Ftemp;
+            char *FtempL;
+            char *FtempH;
             char *Fmm;
             char *Fcondition;
             uint8_t FCondCode;
             char *Fdaynight;
+
             // loop through first 5 forecasts
             // ==============================
             char *sHourly = strtok_r (&sForecasts[0],"#",&outerloop);
             while ((sHourly != NULL) && (count < 5 )) {
               Ftime = strtok_r (sHourly, ";",&innerloop);
-              Ftemp = strtok_r (NULL, ";",&innerloop);
+              FtempL = strtok_r (NULL, ";",&innerloop);
+              FtempH = strtok_r (NULL, ";",&innerloop);
               Fmm = strtok_r (NULL, ";",&innerloop);
               Fcondition = strtok_r (NULL, ";",&innerloop);
               char *sCond = strtok_r (NULL, ";",&innerloop);
               FCondCode = atoi(sCond);
               Fdaynight = strtok_r (NULL, ";",&innerloop);
+
               // display image based on condition code an daynight code
               // ======================================================
-              imglft = wx + 12; 
+              imglft = wx + 13; 
               switch(FCondCode) {
                 case 1:
                   it.image(imglft, imgtop, id(ImgCnd1));
@@ -337,44 +356,99 @@ display:
                 default:
                   it.printf(wx+48, 60, id(fntSml), my_blue, TextAlign::BOTTOM_CENTER, "%s", Fcondition);
               }
-              // display hour temperature, temp & precipitation gauge
-              // ====================================================
-              it.printf(wx+6, 0, id(fntSml), my_blue, TextAlign::TOP_LEFT, "%s", Ftime);
-              it.printf(wx+89, 0, id(fntSml), my_blue, TextAlign::TOP_RIGHT, "%s°", Ftemp);
-              // ---- gauge temp ----
-              // range = -8°>0>24° - -16>0>48  
-              it.rectangle(wx+8, 22, 8, 66, my_grey);
-              uint16_t tzero = 71;
-              double temp = atof(Ftemp);
-              int scaletemp = (int) (temp * 2);  
-              if (scaletemp < 0) {
-                if (scaletemp < -16) {scaletemp = -16;}
-                it.filled_rectangle(wx+9, tzero , 6, (scaletemp * -1), my_red);
-              } else {
-                if (scaletemp > 48) {scaletemp = 48;}
-                it.filled_rectangle(wx+9, tzero-scaletemp , 6, scaletemp, my_yellow);
+              int tgaugemax;  int tgaugemin; int tzero;  
+              switch(time.month) {
+                case 11:
+                case 12:
+                case 1:
+                case 2:   // winter: -12°>0>20°
+                  tgaugemax = 40; tgaugemin = -24; tzero = 65;  // (25=max/ 89=min /65=0)  
+                  break;
+                case 5:
+                case 6:
+                case 7:
+                case 8:
+                case 9:   // summer: 0>32°
+                  tgaugemax = 64; tgaugemin = 0; tzero = 89;  // (25=max/ 89=min /89=0)  
+                  break;
+                default:  //  -8°>0>24°
+                  tgaugemax = 48; tgaugemin = -16; tzero = 73;  // (25=max/ 89=min /73=0)  
               }
-              it.line(wx+8, tzero, wx+18, tzero, my_white);
+
+              // display hour temperature
+              // ========================
+              it.printf(wx+6, 0, id(fntSml), my_blue, TextAlign::TOP_LEFT, "%s", Ftime);
+              it.printf(wx+89, 0, id(fntSml), my_blue, TextAlign::TOP_RIGHT, "%s°", FtempH);
+
+              // display temp gauge
+              // ==================
+              it.rectangle(wx+8, 24, 8, 66, my_grey); 
+              int templow = int((atof(FtempL) * 2) + 0.5);  
+              int temphigh = int((atof(FtempH) * 2) + 0.5);  
+              if (templow < -tgaugemin) {templow = -tgaugemin;}
+              if (temphigh < -tgaugemin) {temphigh = -tgaugemin;}
+              if (templow > tgaugemax) {templow = tgaugemax;}
+              if (temphigh > tgaugemax) {temphigh = tgaugemax;}
+              if (templow == temphigh) {templow = 0;} // for hourly 
+              if (templow > 0) {
+                it.filled_rectangle(wx+9, (tzero-temphigh) , 6, (temphigh - templow + 1), my_yellow);                 
+              } else if (temphigh < 0) {
+                it.filled_rectangle(wx+9, (tzero+temphigh) , 6, (temphigh - templow + 1), my_red);
+              } else {
+                it.filled_rectangle(wx+9, tzero-temphigh , 6, temphigh, my_yellow);
+                it.filled_rectangle(wx+9, tzero , 6, (templow * -1), my_red);
+              }
+              it.line(wx+8, tzero, wx+18, tzero, my_grey);
               it.line(wx+16, tzero-20, wx+18, tzero-20, my_grey);
               it.line(wx+16, tzero-40, wx+18, tzero-40, my_grey);
               it.line(wx+16, tzero-10, wx+17, tzero-10, my_grey);
               it.line(wx+16, tzero-30, wx+17, tzero-30, my_grey);
-              it.line(wx+16, tzero+10, wx+17, tzero+10, my_grey);
-              // ---- gauge precip ----
+              if (tgaugemax > 60) {
+                it.line(wx+16, tzero-60, wx+18, tzero-60, my_grey);
+                it.line(wx+16, tzero-50, wx+17, tzero-50, my_grey);
+              }
+              it.print(wx+20, tzero-5, id(fntXS), my_grey, TextAlign::TOP_LEFT, "0");;
+              it.printf(wx+20, 20, id(fntXS), my_grey, TextAlign::TOP_LEFT, "%i",(tgaugemax/2));
+
+              // display precipitation gauge
+              // ===========================
               uint16_t scaleprecip;
+              uint16_t scalemax;
+              float precip = atof(Fmm);
+              bool preciphigh = false;
               if (id(global_forecast) == 0) {    
-                scaleprecip = (uint16_t) (atof(Fmm) * 32); 
-              } else{
-                scaleprecip = (uint16_t) (atof(Fmm) * 6.4); 
+                if (precip > 2) {
+                  scaleprecip = (uint16_t) (precip * 16); 
+                  scalemax = 4;
+                  preciphigh = true;
+                } else {
+                  scaleprecip = (uint16_t) (precip * 32); 
+                  scalemax = 2;
+                }
+              } else {
+                if (precip > 10) {
+                  scaleprecip = (uint16_t) (precip * 3.2); 
+                  scalemax = 20;
+                  preciphigh = true;
+                } else {
+                  scaleprecip = (uint16_t) (precip * 6.4); 
+                  scalemax = 10;
+                }
               }  
               if (scaleprecip > 64) {scaleprecip = 64;}
               FCondCode = atoi(sCond);
               imglft = wx + 12; 
-              it.rectangle(wx+80, 22, 8, 66, my_grey);
-              it.filled_rectangle(wx+81, 88 - scaleprecip, 6, scaleprecip, my_blue);
-              it.line(wx+78, 23, wx+80, 23, my_grey);
-              it.line(wx+78, 55, wx+80, 55, my_grey);
-              it.line(wx+78, 87, wx+80, 87, my_grey);
+              it.rectangle(wx+80, 24, 8, 66, my_grey);
+              if (preciphigh) {
+                it.filled_rectangle(wx+81, 89 - scaleprecip, 6, scaleprecip, my_purple);
+              } else {
+                it.filled_rectangle(wx+81, 89 - scaleprecip, 6, scaleprecip, my_blue);
+              }
+              it.line(wx+78, 24, wx+80, 24, my_grey);
+              it.line(wx+78, 56, wx+80, 56, my_grey);
+              it.line(wx+78, 89, wx+80, 89, my_grey);
+              it.print(wx+78, 84, id(fntXS), my_grey, TextAlign::TOP_RIGHT, "0mm");
+              it.printf(wx+78, 20, id(fntXS), my_grey, TextAlign::TOP_RIGHT, "%imm", scalemax);              
               wx+=96;
               count++;
               sHourly = strtok_r (NULL,"#",&outerloop);
@@ -387,8 +461,8 @@ display:
           // ================================
           // Display Time, Date, Temperatures
           // ================================
-          it.strftime(m3, 175, id(fntBig), my_white, TextAlign::BOTTOM_CENTER, "%H:%M", id(homeassistant_time).now());
-          it.strftime(m3, 200, id(fntMid), my_white, TextAlign::BOTTOM_CENTER, "%d:%m:%Y", id(homeassistant_time).now());
+          it.strftime(m3, 175, id(fntBig), my_white, TextAlign::BOTTOM_CENTER, "%H:%M", time);
+          it.strftime(m3, 200, id(fntMid), my_white, TextAlign::BOTTOM_CENTER, "%d:%m:%Y", time);
           it.image(102, 130, id(ImgTempin), my_yellow);
           it.printf(102, 100, id(fntMid), my_yellow, TextAlign::TOP_LEFT, "%.1f°", id(ha_tempbinnen).state);
           it.image(346, 130, id(ImgTempout), my_yellow);
@@ -415,7 +489,7 @@ display:
           // ==============
           // Display Motion
           // ==============
-           if (id(prox_move).state) {
+          if (id(prox_move).state) {
             it.image(346, wfy, id(ImgMotion),my_yellow); 
           } else {
             it.image(346, wfy, id(ImgMotion),my_grey); 
@@ -468,8 +542,13 @@ display:
             it.image(v4+10, imgy2, id(${img7}),my_grey);
           }
 
-# 420/6 = 70: 35/105/
 font:
+  - file:
+      type: gfonts
+      family: "Roboto"
+    id: fntXS
+    size: 8
+    glyphs: 0123456789:. °m
   - file:
       type: gfonts
       family: "Roboto"
@@ -516,10 +595,15 @@ color:
     red: 20%
     green: 60%
     blue: 100%
+  - id: my_purple
+    red: 100%
+    green: 0%
+    blue: 100%
   - id: my_yellow
     red: 75%
     green: 75%
     blue: 0%
+
 
 image:
   - file: mdi:air-conditioner
@@ -565,7 +649,7 @@ image:
   - file: mdi:motion-sensor
     id: ImgMotion
     resize: 24x24
-    dither: FLOYDSTEINBERG    
+    dither: FLOYDSTEINBERG     
   - file: ./images/weather1/clear-night.png
     id: ImgCnd1
     type: RGB24
@@ -664,21 +748,27 @@ sensor:
 
 binary_sensor:
   # touch sensors page 'klok5' 
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5top1", iPg: "klok5", iX1: "2", iX2: "94", iY1: "100", iY2: "200", iSc: "but1_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5top2", iPg: "klok5", iX1: "388", iX2: "478", iY1: "100", iY2: "200", iSc: "but2_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot1", iPg: "klok5", iX1: "2", iX2: "92", iY1: "210", iY2: "318", iSc: "but3_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot2", iPg: "klok5", iX1: "98", iX2: "190", iY1: "210", iY2: "318", iSc: "but4_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot3", iPg: "klok5", iX1: "194", iX2: "286", iY1: "210", iY2: "318", iSc: "but5_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot4", iPg: "klok5", iX1: "290", iX2: "382", iY1: "210", iY2: "318", iSc: "but6_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot5", iPg: "klok5", iX1: "386", iX2: "478", iY1: "210", iY2: "318", iSc: "but7_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5changeforecast", iPg: "klok5", iX1: "10", iX2: "470", iY1: "5", iY2: "90", iSc: "but_forecast"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5touchklok", iPg: "klok5", iX1: "98", iX2: "382", iY1: "100", iY2: "200", iSc: "but_time"}}
+  #(0) 1-92 (95) 97-190 (192) 194-286 (288) 290-382 (384) 386-478 (480) 
+  # Calibration not working for me... 
+  # X: 98-190 = 381 - 289  / 194-286 = 285-193 / 290-382 = 189-97  
+  # Y: 100 [wordt 219] 200 [wordt 119]             319       220      110     0
+  # Y: 210 [wordt 109] 318 [wordt 1]
+
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5top1", iPg: "klok5", iX1: "1", iX2: "92", iY1: "119", iY2: "219", iSc: "but1_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5top2", iPg: "klok5", iX1: "386", iX2: "478", iY1: "119", iY2: "219", iSc: "but2_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot1", iPg: "klok5", iX1: "1", iX2: "92", iY1: "1", iY2: "109", iSc: "but3_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot2", iPg: "klok5", iX1: "97", iX2: "190", iY1: "1", iY2: "109", iSc: "but4_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot3", iPg: "klok5", iX1: "194", iX2: "286", iY1: "1", iY2: "109", iSc: "but5_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot4", iPg: "klok5", iX1: "290", iX2: "382", iY1: "1", iY2: "109", iSc: "but6_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot5", iPg: "klok5", iX1: "386", iX2: "478", iY1: "1", iY2: "109", iSc: "but7_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5changeforecast", iPg: "klok5", iX1: "10", iX2: "470", iY1: "222", iY2: "318", iSc: "but_forecast"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5touchklok", iPg: "klok5", iX1: "97", iX2: "382", iY1: "119", iY2: "219", iSc: "but_time"}}
   - platform: gpio
     pin: 33
     name: "prox_move"
     id: "prox_move"
     device_class: motion
-    on_press:
+    on_state:
       - script.execute: undim_script
 
 text_sensor:

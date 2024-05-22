@@ -1,5 +1,20 @@
-    forecast_5days:
-      value_template: >-
+# part of my home assistant templates.yaml file
+# creates a text sensor with compact forecast info for my esphome devices
+# exp: "Wo;14.0;19.5;0.0;cloudy;2;D#Do;11.0;19.4;2.0;rainy;9;D#Vr;9.7;18.8;7.6;cloudy;2;D#Za;13.3;15.1;35.9;rainy;9;D#Zo;12.4;20.2;2.7;rainy;9;D#"
+- trigger:
+    - platform: time_pattern
+      hours: "/2"
+  action:
+    - service: weather.get_forecasts
+      data:
+        type: daily
+      target:
+        entity_id: weather.home
+      response_variable: fc_daily
+  sensor:
+    - name: "forecast_5days"
+      unique_id: "forecast_5days"
+      state: >-
         {% set WDay = {
           "0": "Zo",
           "1": "Ma",
@@ -26,6 +41,11 @@
           "windy-variant": 14,
           "exceptional": 15
         } %}
-        {% for state in states.weather.rogge.attributes.forecast[0:5] %}{% set dt = strptime(state.datetime.split("T")[0],'%Y-%m-%d')
-           %}{{WDay[dt.strftime('%w')]}};{{state.temperature}};{{state.precipitation}};{{state.condition}};{{CondCode[state.condition]}};D#{%
-           endfor %}
+        {% if (fc_daily['weather.home']) %}
+          {% for fc in fc_daily['weather.home'].forecast[0:5]
+          %}{% set dt = strptime(fc.datetime.split("T")[0],'%Y-%m-%d')
+          %}{{WDay[dt.strftime('%w')]}};{{fc.templow}};{{fc.temperature}};{{fc.precipitation}};{{fc.condition}};{{CondCode[fc.condition]}};D#{%
+          endfor %}
+        {% else %}
+          Null
+        {% endif %}

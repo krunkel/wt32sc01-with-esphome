@@ -2,9 +2,9 @@ platform: touchscreen
 id: ${iId}
 internal: True
 page_id: ${iPg}
-x_min: ${iX1}
-x_max: ${iX2}
-y_min: ${iY1}
-y_max: ${iY2}
+x_min: ${iY1}
+x_max: ${iY2}
+y_min: ${iX1}
+y_max: ${iX2}
 on_press:
   - script.execute: ${iSc}

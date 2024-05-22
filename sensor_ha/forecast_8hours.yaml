@@ -1,12 +1,20 @@
-### sensors.yaml ###
-####################
-# forecast_8hours template sensor to be adapted and added to home assistant config
-- platform: template
-  sensors:
-    # generate string with 8 next hourly forecasts: hour;temp;percipation;condcode;condition;day/night#
-    # used in esphome devices 
-    forecast_8hours:
-      value_template: >-
+# part of my home assistant templates.yaml file
+# creates a text sensor with compact forecast info for my esphome devices
+# exp: "15u;0;19.1;0.0;partlycloudy;7;D#16u;0;19.3;0.0;partlycloudy;7;D#17u;0;19.5;0.0;sunny;12;D#18u...."
+- trigger:
+    - platform: time_pattern
+      minutes: "/30"
+  action:
+    - service: weather.get_forecasts
+      data:
+        type: hourly
+      target:
+        entity_id: weather.home
+      response_variable: fc_hourly
+  sensor:
+    - name: "forecast_8hours"
+      unique_id: "forecast_8hours"
+      state: >-
         {% set CondCode = {
           "clear-night": 1,
           "cloudy": 2,
@@ -24,8 +32,13 @@
           "windy-variant": 14,
           "exceptional": 15
         } %}
-        {%  set tsunrise = states.sun.sun.attributes.next_rising.split('T')[1]  %}
-        {%  set tsunset = states.sun.sun.attributes.next_setting.split('T')[1]  %}
-        {% for state in states.weather.home_hourly.attributes.forecast[0:8]
-        %}{{state.datetime.split('T')[1].split(':')[0]}}u;{{state.temperature}};{{state.precipitation}};{{state.condition}};{{CondCode[state.condition]}};{% if ((state.datetime.split('T')[1] > tsunrise) and (state.datetime.split('T')[1] < tsunset)) %}D{% else %}N{% endif %}#{%
-        endfor %}
+        {% if (fc_hourly['weather.home']) %}
+          {% set tsunrise = as_datetime(states.sun.sun.attributes.next_rising).astimezone().hour %}
+          {% set tsunset = as_datetime(states.sun.sun.attributes.next_setting).astimezone().hour %}
+          {% for fc in fc_hourly['weather.home'].forecast[0:8]
+          %}{% set fc_hour = as_datetime(fc.datetime).astimezone().hour %}{{fc_hour}}u;0;{{fc.temperature}};{{fc.precipitation}};{{fc.condition}};{{CondCode[fc.condition]}};{% 
+          if ((fc_hour > tsunrise) and (fc_hour < tsunset)) %}D{% else %}N{% endif %}#{%
+          endfor %}
+        {% else %}
+          Null
+        {% endif %}
