@@ -67,19 +67,24 @@ esp32:
   board: esp-wrover-kit
   framework:
     type: arduino
+psram:
+  mode: octal
+  speed: 80MHz
 
 preferences:
   flash_write_interval: 15min
 
 logger:
   level: Error
+#  level: DEBUG
 
 api:
   encryption:
     key: !secret ha_defaultkey
 
 ota:
-  password: !secret esphome_ota_pw
+  - platform: esphome
+    password: !secret esphome_ota_pw
 
 wifi:
   ssid: !secret wifi_ssid_iot
@@ -226,14 +231,9 @@ touchscreen:
     id: ${id_prefix}_touch
     i2c_id: i2c_bus_intern
     interrupt_pin: GPIO39
-#    transform:
-#      swap_xy: true
-#      mirror_x: true
-#    calibration:
-#      x_min: 0
-#      x_max: 319
-#      y_min: 479
-#      y_max: 0
+    transform:
+      swap_xy: true
+      mirror_y: true
     on_touch:
       - script.execute: undim_script
 #      - lambda: |-
@@ -256,8 +256,13 @@ display:
     cs_pin: GPIO15
     dc_pin: GPIO21
     reset_pin: GPIO22
-    rotation: 90
     invert_colors: false
+    transform:
+      swap_xy: true
+    dimensions:
+      width: 480
+      height: 320    
+#    rotation: 90
     pages:
       - id: klok5
         lambda: |-
@@ -611,125 +616,137 @@ image:
     id: imgAirco
     resize: 76x70
     dither: FLOYDSTEINBERG
+    type: GRAYSCALE
   - file: mdi:lightbulb
     id: imgLamp
     resize: 76x76
     dither: FLOYDSTEINBERG
+    type: GRAYSCALE
   - file: mdi:lightbulb-group
     id: imgLampgroup
     resize: 76x76
     dither: FLOYDSTEINBERG
+    type: GRAYSCALE
   - file: mdi:wifi-strength-alert-outline
     id: wifi0
     resize: 24x24
     dither: FLOYDSTEINBERG
+    type: GRAYSCALE
   - file: mdi:wifi-strength-1
     id: wifi1
     resize: 24x24
     dither: FLOYDSTEINBERG
+    type: GRAYSCALE
   - file: mdi:wifi-strength-2
     id: wifi2
     resize: 24x24
     dither: FLOYDSTEINBERG
+    type: GRAYSCALE
   - file: mdi:wifi-strength-3
     id: wifi3
     resize: 24x24
     dither: FLOYDSTEINBERG
+    type: GRAYSCALE
   - file: mdi:wifi-strength-4
     id: wifi4
     resize: 24x24
     dither: FLOYDSTEINBERG
+    type: GRAYSCALE
   - file: mdi:sun-thermometer-outline
     id: ImgTempout
     resize: 32x32
     dither: FLOYDSTEINBERG
+    type: GRAYSCALE
   - file: mdi:home-thermometer-outline
     id: ImgTempin
     resize: 32x32
     dither: FLOYDSTEINBERG
+    type: GRAYSCALE
   - file: mdi:motion-sensor
     id: ImgMotion
     resize: 24x24
     dither: FLOYDSTEINBERG     
+    type: GRAYSCALE
   - file: ./images/weather1/clear-night.png
     id: ImgCnd1
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
+ #   transparency:   
     resize: 72x72
   - file: ./images/weather1/cloudy.png
     id: ImgCnd2
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/fog.png
     id: ImgCnd3
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/hail.png
     id: ImgCnd4
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/lightning.png
     id: ImgCnd5
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/lightning-rainy.png
     id: ImgCnd6
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/partly-cloudy.png
     id: ImgCnd7D
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/partly-cloudyN.png
     id: ImgCnd7N
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/rainy.png
     id: ImgCnd8
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/rainy.png
     id: ImgCnd9
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/snowy.png
     id: ImgCnd10
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/snowy-rainy.png
     id: ImgCnd11
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/sunny.png
     id: ImgCnd12
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/windy.png
     id: ImgCnd13
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/windy-variant.png
     id: ImgCnd14
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
   - file: ./images/weather1/exceptional.png
     id: ImgCnd15
-    type: RGB24
-    use_transparency: True
+    type: RGB
+    transparency: chroma_key 
     resize: 72x72
 
 sensor:
@@ -747,23 +764,24 @@ sensor:
     id: ha_tempbinnen
     internal: True
 
-binary_sensor:
-  # touch sensors page 'klok5' 
-  #(0) 1-92 (95) 97-190 (192) 194-286 (288) 290-382 (384) 386-478 (480) 
-  # Calibration not working for me... 
-  # X: 98-190 = 381 - 289  / 194-286 = 285-193 / 290-382 = 189-97  
-  # Y: 100 [wordt 219] 200 [wordt 119]             319       220      110     0
-  # Y: 210 [wordt 109] 318 [wordt 1]
 
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5top1", iPg: "klok5", iX1: "1", iX2: "92", iY1: "119", iY2: "219", iSc: "but1_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5top2", iPg: "klok5", iX1: "386", iX2: "478", iY1: "119", iY2: "219", iSc: "but2_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot1", iPg: "klok5", iX1: "1", iX2: "92", iY1: "1", iY2: "109", iSc: "but3_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot2", iPg: "klok5", iX1: "97", iX2: "190", iY1: "1", iY2: "109", iSc: "but4_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot3", iPg: "klok5", iX1: "194", iX2: "286", iY1: "1", iY2: "109", iSc: "but5_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot4", iPg: "klok5", iX1: "290", iX2: "382", iY1: "1", iY2: "109", iSc: "but6_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot5", iPg: "klok5", iX1: "386", iX2: "478", iY1: "1", iY2: "109", iSc: "but7_script"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5changeforecast", iPg: "klok5", iX1: "10", iX2: "470", iY1: "222", iY2: "318", iSc: "but_forecast"}}
-  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5touchklok", iPg: "klok5", iX1: "97", iX2: "382", iY1: "119", iY2: "219", iSc: "but_time"}}
+binary_sensor:
+  # touch sensors page 'klok5'
+  # 3 regions top to bottom: lines on 96 and 208
+  #    Y=0>94=top=forecast
+  #    Y=98>206=middle=button top1/clock/top2
+  #    Y=210>318=bottom=buttons bot1/.../bop5
+  # 5 regions left to right: 
+  #    X= (0) 1>93 (95) 97>190 (192) 194>286 (288) 290>382 (384) 386>478 (480) 
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5top1", iPg: "klok5", iX1: "1", iX2: "93", iY1: "98", iY2: "206", iSc: "but1_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5top2", iPg: "klok5", iX1: "386", iX2: "478", iY1: "98", iY2: "206", iSc: "but2_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot1", iPg: "klok5", iX1: "1", iX2: "93", iY1: "210", iY2: "318", iSc: "but3_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot2", iPg: "klok5", iX1: "97", iX2: "190", iY1: "210", iY2: "318", iSc: "but4_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot3", iPg: "klok5", iX1: "194", iX2: "286", iY1: "210", iY2: "318", iSc: "but5_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot4", iPg: "klok5", iX1: "290", iX2: "382", iY1: "210", iY2: "318", iSc: "but6_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5bot5", iPg: "klok5", iX1: "386", iX2: "478", iY1: "210", iY2: "318", iSc: "but7_script"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5changeforecast", iPg: "klok5", iX1: "10", iX2: "470", iY1: "0", iY2: "94", iSc: "but_forecast"}}
+  - <<: !include {file: includes/iTouch2.yaml, vars: {iId: "k5touchklok", iPg: "klok5", iX1: "97", iX2: "382", iY1: "98", iY2: "206", iSc: "but_time"}}
   - platform: gpio
     pin: 33
     name: "prox_move"
